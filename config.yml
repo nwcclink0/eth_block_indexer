@@ -2,6 +2,14 @@ core:
   start_block_num: 21709284 # the latest I know block number
   worker_num: 0 # default worker number is runtime.NumCPU()
   queue_num: 0 # default queue number is 8192
+  address: ""
+  http_port: "8080"
+  https_port: "8081"
+  mode: "release"
+api:
+  blocks_uri: "/blocks"
+  block_by_id_uri: "/blocks/:id"
+  transaction_uri: "/transaction/:txHash"
 log:
   format: "string" # string or json
   access_log: "/var/eth_block_indexer_log" # stdout: output to console,or define log path like "log/access_log"

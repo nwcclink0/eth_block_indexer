@@ -6,11 +6,11 @@ import (
 	"flag"
 	"fmt"
 	"github.com/coreos/go-systemd/daemon"
+	"golang.org/x/sync/errgroup"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 )
 
 func main() {
@@ -69,8 +69,11 @@ func main() {
 	}
 	indexer := service.NewIndexer(service.EthBlockIndexerConf.Core.StartBlockNum)
 	indexer.Run()
-	for {
-		time.Sleep(1)
+
+	var g errgroup.Group
+	g.Go(service.RunHTTPServer)
+	if err = g.Wait(); err != nil {
+		service.LogError.Fatal(err)
 	}
 }
 

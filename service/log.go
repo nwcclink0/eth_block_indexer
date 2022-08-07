@@ -1,7 +1,10 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/gin-gonic/gin"
 	"github.com/mattn/go-isatty"
 	"github.com/sirupsen/logrus"
 	"os"
@@ -95,6 +98,37 @@ func SetLogOut(log *logrus.Logger, outString string) error {
 	return nil
 }
 
+func LogRequest(uri string, method string, ip string, ContentType string,
+	agent string) {
+	var output string
+	log := &LogReq{
+		URI:         uri,
+		Method:      method,
+		IP:          ip,
+		ContentType: ContentType,
+		Agent:       agent,
+	}
+
+	if EthBlockIndexerConf.Log.Format == "json" {
+		logJson, _ := json.Marshal(log)
+		output = string(logJson)
+	} else {
+		var headerColor, resetColor string
+
+		if isTerm {
+			headerColor = magenta
+			resetColor = reset
+		}
+
+		output = fmt.Sprintf("|%s header %s|",
+			headerColor, resetColor,
+		)
+	}
+
+	//LogAccess.Info(output)
+	print(output)
+}
+
 // SetLogLevel is define log level what you want
 // log level: panic, fatal, error, warn, info and debug
 func SetLogLevel(log *logrus.Logger, levelString string) error {
@@ -106,4 +140,13 @@ func SetLogLevel(log *logrus.Logger, levelString string) error {
 
 	log.Level = level
 	return nil
+}
+
+func LogMiddleware() gin.HandlerFunc {
+	return func(context *gin.Context) {
+		LogRequest(context.Request.URL.Path, context.Request.Method,
+			context.ClientIP(), context.ContentType(),
+			context.GetHeader("User-Agent"))
+		context.Next()
+	}
 }
