@@ -67,11 +67,14 @@ func main() {
 	if err != nil {
 		service.LogError.Fatal(err)
 	}
+	service.InitWorker(service.EthBlockIndexerConf.Core.WorkerNum,
+		service.EthBlockIndexerConf.Core.QueueNum)
+	service.InitDb()
 	indexer := service.NewIndexer(service.EthBlockIndexerConf.Core.StartBlockNum)
-	indexer.Run()
 
 	var g errgroup.Group
 	g.Go(service.RunHTTPServer)
+	indexer.Run()
 	if err = g.Wait(); err != nil {
 		service.LogError.Fatal(err)
 	}

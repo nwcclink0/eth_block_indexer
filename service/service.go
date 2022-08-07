@@ -64,28 +64,30 @@ func ShowBlockInfo(blockNum uint64) {
 }
 
 func (indexer *ethBlockIndexer) Run() {
-	//for {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	c, err := ethclient.DialContext(ctx, binanceMainnet)
-	if err != nil {
-		LogError.Error(err)
-	}
+	lastScanBlockNum := indexer.LastScanBlockNum
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		c, err := ethclient.DialContext(ctx, binanceMainnet)
+		if err != nil {
+			LogError.Error(err)
+		}
 
-	//get last block num
-	lastBlockNumber, err := c.BlockNumber(ctx)
-	if err != nil {
-		LogError.Error(err)
-	}
-	cancel()
+		// add new block and update old block
+		{
+			//get last block num
+			lastBlockNumber, err := c.BlockNumber(ctx)
+			cancel()
+			if err != nil {
+				LogError.Error(err)
+			}
 
-	LogAccess.Debug("total scan blocks number: ", lastBlockNumber-indexer.LastScanBlockNum)
+			LogAccess.Debug("total scan blocks number: ", lastBlockNumber-indexer.LastScanBlockNum)
 
-	//add new Block
-	for blockNumber := indexer.LastScanBlockNum + 1; blockNumber <= lastBlockNumber; blockNumber++ {
-		go Indexing(blockNumber)
-		break
+			for blockNumber := lastScanBlockNum; blockNumber <= lastBlockNumber; blockNumber++ {
+				QueueIndexingBlockNum <- blockNumber
+			}
+		}
 	}
-	//}
 }
 
 type EthBlockIndexer interface {

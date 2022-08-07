@@ -53,8 +53,7 @@ type Transaction struct {
 }
 
 type TransactionJSN struct {
-	TxHash   string `json:"tx_hash"`
-	BlockNum uint64
+	TxHash string `json:"tx_hash"`
 	//TODO from need to add
 	//From     common.Hash `json:"from"`
 	To    string `json:"to"`
@@ -82,14 +81,17 @@ type TransactionWithLogJSN struct {
 
 const dsn = "host=localhost user=yt dbname=eth_block_index port=5432 sslmode=disable"
 
-func Indexing(blockNum uint64) {
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+func InitDb() {
+	var err error
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		LogError.Error(err)
 		panic(err)
 	}
+}
 
-	err = db.AutoMigrate(&Block{})
+func Indexing(blockNum uint64) {
+	err := db.AutoMigrate(&Block{})
 	if err != nil {
 		return
 	}
@@ -109,6 +111,7 @@ func Indexing(blockNum uint64) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	dialContext, err := ethclient.DialContext(ctx, binanceMainnet)
 	block, err := dialContext.BlockByNumber(ctx, new(big.Int).SetUint64(blockNum))
+	cancel()
 
 	//check
 	var blockInDb Block
@@ -126,6 +129,15 @@ func Indexing(blockNum uint64) {
 		transactions := block.Transactions()
 		for i := 0; i < len(transactions); i++ {
 			transaction := transactions[i]
+			if transaction == nil {
+				continue
+			}
+			var to = make([]byte, 0)
+			if transaction.To() != nil {
+				to = transaction.To().Bytes()
+			} else {
+				LogAccess.Debug("transaction to is null")
+			}
 			var dbTransaction Transaction
 
 			result := db.First(&dbTransaction, Transaction{TxHash: transaction.Hash().Bytes()})
@@ -133,7 +145,7 @@ func Indexing(blockNum uint64) {
 				db.Create(&Transaction{
 					BlockNum: block.NumberU64(),
 					TxHash:   transaction.Hash().Bytes(),
-					To:       transaction.To().Bytes(),
+					To:       to,
 					Nonce:    transaction.Nonce(),
 					Data:     transaction.Data(),
 					Value:    transaction.Value().Uint64(),
@@ -160,21 +172,39 @@ func Indexing(blockNum uint64) {
 			ParentHash: block.ParentHash().Bytes(),
 		})
 
-		db.Create(&BlockSummary{LastBlockNum: block.NumberU64()})
+		var blockSummary BlockSummary
+		result := db.First(&blockSummary)
+		if result.Error != nil {
+			db.Create(&BlockSummary{LastBlockNum: block.NumberU64()})
+		} else {
+			db.Model(&blockSummary).Updates(&BlockSummary{LastBlockNum: block.NumberU64()})
+		}
 
 		transactions := block.Transactions()
 		for i := 0; i < len(transactions); i++ {
 			transaction := transactions[i]
+			if transaction == nil {
+				continue
+			}
+			var to = make([]byte, 0)
+			if transaction.To() != nil {
+				to = transaction.To().Bytes()
+			} else {
+				LogAccess.Debug("transaction to is null")
+			}
 			db.Create(&Transaction{
 				BlockNum: block.NumberU64(),
 				TxHash:   transaction.Hash().Bytes(),
-				To:       transaction.To().Bytes(),
+				To:       to,
 				Nonce:    transaction.Nonce(),
 				Data:     transaction.Data(),
 				Value:    transaction.Value().Uint64(),
 			})
-
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			dialContext, err := ethclient.DialContext(ctx, binanceMainnet)
 			receipt, err := dialContext.TransactionReceipt(ctx, transaction.Hash())
+			cancel()
+
 			if err != nil {
 				LogError.Error(err)
 			}
@@ -194,13 +224,7 @@ func Indexing(blockNum uint64) {
 }
 
 func GetLastNBlocks(n uint64) *BlockContainerJSN {
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	var blockContainer BlockContainerJSN
-	if err != nil {
-		LogError.Error(err)
-		return &blockContainer
-	}
-
 	var blockSummary BlockSummary
 	result := db.First(&blockSummary)
 	if result.Error == nil {
@@ -229,11 +253,6 @@ func GetLastNBlocks(n uint64) *BlockContainerJSN {
 
 func GetBlockById(blockNum uint64) *BlockWithTransactionsJSN {
 	var blockWithTransactionsJSN BlockWithTransactionsJSN
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		LogError.Error(err)
-		return &blockWithTransactionsJSN
-	}
 	var block Block
 	result := db.First(&block, Block{
 		BlockNum: blockNum,
@@ -273,11 +292,6 @@ func GetBlockById(blockNum uint64) *BlockWithTransactionsJSN {
 
 func getTransactionByTxHash(txHashStr string) *TransactionWithLogJSN {
 	var transactionWithLogJSN TransactionWithLogJSN
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		LogError.Error(err)
-		return &transactionWithLogJSN
-	}
 	var transaction Transaction
 	txHash, err := hex.DecodeString(txHashStr)
 	if err != nil {
