@@ -149,7 +149,7 @@ func rootHandler(context *gin.Context) {
 func queryBlocksHandler(context *gin.Context) {
 	lastNBlockStr := context.Query("limit")
 	lastNBlock, err := strconv.Atoi(lastNBlockStr)
-	var emptyBlocks = make([]Block, 0)
+	var emptyBlocks = make([]BlockJSN, 0)
 	if err != nil {
 		LogAccess.Debug("didn't contain last ", lastNBlockStr, " block")
 		context.JSON(http.StatusOK, gin.H{
@@ -166,9 +166,7 @@ func queryBlocksHandler(context *gin.Context) {
 		})
 		return
 	} else {
-		context.JSON(http.StatusOK, gin.H{
-			"blocks": blockContainer.Blocks,
-		})
+		context.JSON(http.StatusOK, blockContainer)
 	}
 }
 
@@ -176,9 +174,9 @@ func queryBlockByIdHandler(context *gin.Context) {
 	blockIdStr := context.Param("id")
 	blockId, err := strconv.Atoi(blockIdStr)
 
-	var emptyBlockWithTransactions BlockWithTransactions
+	var emptyBlockWithTransactionsJSN BlockWithTransactionsJSN
 	if err != nil {
-		context.JSON(http.StatusOK, emptyBlockWithTransactions)
+		context.JSON(http.StatusOK, emptyBlockWithTransactionsJSN)
 		return
 	}
 	blockIdkU64 := uint64(blockId)
@@ -189,7 +187,7 @@ func queryBlockByIdHandler(context *gin.Context) {
 func queryTransactionHandler(context *gin.Context) {
 	txHash := context.Param("txHash")
 	if len(txHash) == 0 {
-		transactionWithLog := TransactionWithLog{}
+		transactionWithLog := TransactionWithLogJSN{}
 		context.JSON(http.StatusOK, transactionWithLog)
 	} else {
 		transactionWithLog := getTransactionByTxHash(txHash)

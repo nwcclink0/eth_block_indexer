@@ -13,18 +13,25 @@ import (
 
 type Block struct {
 	gorm.Model
+	BlockNum   uint64
+	BlockHash  []byte
+	BlockTime  uint64
+	ParentHash []byte
+}
+
+type BlockJSN struct {
 	BlockNum   uint64 `json:"block_num"`
-	BlockHash  []byte `json:"block_hash"`
+	BlockHash  string `json:"block_hash"`
 	BlockTime  uint64 `json:"block_time"`
-	ParentHash []byte `json:"parent_hash"`
+	ParentHash string `json:"parent_hash"`
 }
 
-type BlockContainer struct {
-	Blocks []Block `json:"blocks"`
+type BlockContainerJSN struct {
+	Blocks []BlockJSN `json:"blocks"`
 }
 
-type BlockWithTransactions struct {
-	Block
+type BlockWithTransactionsJSN struct {
+	BlockJSN
 	Transactions []string `json:"transactions"`
 }
 
@@ -45,16 +52,32 @@ type Transaction struct {
 	Value uint64 `json:"value"`
 }
 
-type TransactionLog struct {
-	gorm.Model
-	TxHash []byte `json:"tx_hash"`
-	Index  uint   `json:"index"`
-	Data   []byte `json:"data"`
+type TransactionJSN struct {
+	TxHash   string `json:"tx_hash"`
+	BlockNum uint64
+	//TODO from need to add
+	//From     common.Hash `json:"from"`
+	To    string `json:"to"`
+	Nonce uint64 `json:"nonce"`
+	Data  string `json:"data"`
+	Value uint64 `json:"value"`
 }
 
-type TransactionWithLog struct {
-	Transaction
-	Logs []TransactionLog `json:"logs"`
+type TransactionLog struct {
+	gorm.Model
+	TxHash []byte
+	Index  uint
+	Data   []byte
+}
+
+type TransactionLogJSN struct {
+	Index uint   `json:"index"`
+	Data  string `json:"data"`
+}
+
+type TransactionWithLogJSN struct {
+	TransactionJSN
+	Logs []TransactionLogJSN `json:"logs"`
 }
 
 const dsn = "host=localhost user=yt dbname=eth_block_index port=5432 sslmode=disable"
@@ -170,9 +193,9 @@ func Indexing(blockNum uint64) {
 	cancel()
 }
 
-func GetLastNBlocks(n uint64) *BlockContainer {
+func GetLastNBlocks(n uint64) *BlockContainerJSN {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	var blockContainer BlockContainer
+	var blockContainer BlockContainerJSN
 	if err != nil {
 		LogError.Error(err)
 		return &blockContainer
@@ -189,7 +212,13 @@ func GetLastNBlocks(n uint64) *BlockContainer {
 				LogAccess.Debug("block number:", startBlockNum, " didn't exist in db")
 			} else {
 				LogAccess.Debug(" block number hash: ", string(block.BlockHash))
-				blockContainer.Blocks = append(blockContainer.Blocks, block)
+				blockJSN := BlockJSN{
+					BlockNum:   block.BlockNum,
+					BlockHash:  hex.EncodeToString(block.BlockHash),
+					BlockTime:  block.BlockTime,
+					ParentHash: hex.EncodeToString(block.ParentHash),
+				}
+				blockContainer.Blocks = append(blockContainer.Blocks, blockJSN)
 			}
 		}
 		return &blockContainer
@@ -198,22 +227,22 @@ func GetLastNBlocks(n uint64) *BlockContainer {
 	}
 }
 
-func GetBlockById(blockNum uint64) *BlockWithTransactions {
-	var blockWithTransaction BlockWithTransactions
+func GetBlockById(blockNum uint64) *BlockWithTransactionsJSN {
+	var blockWithTransactionsJSN BlockWithTransactionsJSN
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		LogError.Error(err)
-		return &blockWithTransaction
+		return &blockWithTransactionsJSN
 	}
 	var block Block
 	result := db.First(&block, Block{
 		BlockNum: blockNum,
 	})
 	if result.Error == nil {
-		blockWithTransaction.BlockNum = block.BlockNum
-		blockWithTransaction.BlockHash = block.BlockHash
-		blockWithTransaction.BlockTime = block.BlockTime
-		blockWithTransaction.ParentHash = block.ParentHash
+		blockWithTransactionsJSN.BlockNum = block.BlockNum
+		blockWithTransactionsJSN.BlockHash = hex.EncodeToString(block.BlockHash)
+		blockWithTransactionsJSN.BlockTime = block.BlockTime
+		blockWithTransactionsJSN.ParentHash = hex.EncodeToString(block.ParentHash)
 
 		var transaction []Transaction
 		result := db.Find(&transaction, Transaction{BlockNum: blockNum})
@@ -233,44 +262,45 @@ func GetBlockById(blockNum uint64) *BlockWithTransactions {
 			if err != nil {
 				LogAccess.Debug(err)
 			}
-			blockWithTransaction.Transactions = append(blockWithTransaction.Transactions, hex.EncodeToString(transaction.TxHash))
+			blockWithTransactionsJSN.Transactions =
+				append(blockWithTransactionsJSN.Transactions, hex.EncodeToString(transaction.TxHash))
 		}
-		return &blockWithTransaction
+		return &blockWithTransactionsJSN
 	} else {
-		return &blockWithTransaction
+		return &blockWithTransactionsJSN
 	}
 }
 
-func getTransactionByTxHash(txHashStr string) *TransactionWithLog {
-	var transactionWithLog TransactionWithLog
+func getTransactionByTxHash(txHashStr string) *TransactionWithLogJSN {
+	var transactionWithLogJSN TransactionWithLogJSN
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		LogError.Error(err)
-		return &transactionWithLog
+		return &transactionWithLogJSN
 	}
 	var transaction Transaction
 	txHash, err := hex.DecodeString(txHashStr)
 	if err != nil {
 		LogError.Error(err)
-		return &transactionWithLog
+		return &transactionWithLogJSN
 	}
 	result := db.First(&transaction, Transaction{TxHash: txHash})
 	if result.Error == nil {
-		transactionWithLog.TxHash = transaction.TxHash
-		transactionWithLog.To = transaction.To
-		transactionWithLog.Nonce = transaction.Nonce
-		transactionWithLog.Data = transaction.Data
-		transactionWithLog.Value = transaction.Value
+		transactionWithLogJSN.TxHash = hex.EncodeToString(transaction.TxHash)
+		transactionWithLogJSN.To = hex.EncodeToString(transaction.To)
+		transactionWithLogJSN.Nonce = transaction.Nonce
+		transactionWithLogJSN.Data = hex.EncodeToString(transaction.Data)
+		transactionWithLogJSN.Value = transaction.Value
 
 		var transactionLogs []TransactionLog
 		result := db.Find(&transactionLogs, TransactionLog{TxHash: transaction.TxHash})
 		if result.Error != nil {
 			LogAccess.Debug("didn't exist log of transaction tx_hash:", string(transaction.TxHash))
-			return &transactionWithLog
+			return &transactionWithLogJSN
 		} else {
 			rows, err := result.Rows()
 			if err != nil {
-				return &transactionWithLog
+				return &transactionWithLogJSN
 			}
 			defer func(rows *sql.Rows) {
 				err := rows.Close()
@@ -284,11 +314,15 @@ func getTransactionByTxHash(txHashStr string) *TransactionWithLog {
 				if err != nil {
 					LogAccess.Debug(err)
 				}
-				transactionWithLog.Logs = append(transactionWithLog.Logs, transactionLog)
+				transactionLogJSN := TransactionLogJSN{
+					Index: transactionLog.Index,
+					Data:  hex.EncodeToString(transactionLog.Data),
+				}
+				transactionWithLogJSN.Logs = append(transactionWithLogJSN.Logs, transactionLogJSN)
 			}
 		}
-		return &transactionWithLog
+		return &transactionWithLogJSN
 	} else {
-		return &transactionWithLog
+		return &transactionWithLogJSN
 	}
 }
