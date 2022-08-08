@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"github.com/ackermanx/ethclient"
+	"github.com/ethereum/go-ethereum/core/types"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"math/big"
@@ -44,22 +45,20 @@ type Transaction struct {
 	gorm.Model
 	TxHash   []byte `json:"tx_hash"`
 	BlockNum uint64
-	//TODO from need to add
-	//From     common.Hash `json:"from"`
-	To    []byte `json:"to"`
-	Nonce uint64 `json:"nonce"`
-	Data  []byte `json:"data"`
-	Value uint64 `json:"value"`
+	From     []byte `json:"from"`
+	To       []byte `json:"to"`
+	Nonce    uint64 `json:"nonce"`
+	Data     []byte `json:"data"`
+	Value    uint64 `json:"value"`
 }
 
 type TransactionJSN struct {
 	TxHash string `json:"tx_hash"`
-	//TODO from need to add
-	//From     common.Hash `json:"from"`
-	To    string `json:"to"`
-	Nonce uint64 `json:"nonce"`
-	Data  string `json:"data"`
-	Value uint64 `json:"value"`
+	From   string `json:"from"`
+	To     string `json:"to"`
+	Nonce  uint64 `json:"nonce"`
+	Data   string `json:"data"`
+	Value  uint64 `json:"value"`
 }
 
 type TransactionLog struct {
@@ -139,12 +138,20 @@ func Indexing(blockNum uint64) {
 				LogAccess.Debug("transaction to is null")
 			}
 			var dbTransaction Transaction
-
+			chainId, err := dialContext.NetworkID(context.Background())
+			if err != nil {
+				LogError.Error(err)
+			}
+			msg, err := transaction.AsMessage(types.NewEIP155Signer(chainId), block.BaseFee())
+			if err != nil {
+				LogError.Error(err)
+			}
 			result := db.First(&dbTransaction, Transaction{TxHash: transaction.Hash().Bytes()})
 			if result.Error == nil {
 				db.Create(&Transaction{
 					BlockNum: block.NumberU64(),
 					TxHash:   transaction.Hash().Bytes(),
+					From:     msg.From().Hash().Bytes(),
 					To:       to,
 					Nonce:    transaction.Nonce(),
 					Data:     transaction.Data(),
@@ -155,6 +162,8 @@ func Indexing(blockNum uint64) {
 					&Transaction{
 						BlockNum: block.NumberU64(),
 						TxHash:   transaction.Hash().Bytes(),
+						From:     msg.From().Hash().Bytes(),
+						To:       to,
 						Nonce:    transaction.Nonce(),
 						Data:     transaction.Data(),
 						Value:    transaction.Value().Uint64(),
@@ -186,6 +195,14 @@ func Indexing(blockNum uint64) {
 			if transaction == nil {
 				continue
 			}
+			chainId, err := dialContext.NetworkID(context.Background())
+			if err != nil {
+				LogError.Error(err)
+			}
+			msg, err := transaction.AsMessage(types.NewEIP155Signer(chainId), block.BaseFee())
+			if err != nil {
+				LogError.Error(err)
+			}
 			var to = make([]byte, 0)
 			if transaction.To() != nil {
 				to = transaction.To().Bytes()
@@ -195,6 +212,7 @@ func Indexing(blockNum uint64) {
 			db.Create(&Transaction{
 				BlockNum: block.NumberU64(),
 				TxHash:   transaction.Hash().Bytes(),
+				From:     msg.From().Hash().Bytes(),
 				To:       to,
 				Nonce:    transaction.Nonce(),
 				Data:     transaction.Data(),
@@ -302,6 +320,7 @@ func getTransactionByTxHash(txHashStr string) *TransactionWithLogJSN {
 	result := db.First(&transaction, Transaction{TxHash: txHash})
 	if result.Error == nil {
 		transactionWithLogJSN.TxHash = hex.EncodeToString(transaction.TxHash)
+		transactionWithLogJSN.From = hex.EncodeToString(transaction.From)
 		transactionWithLogJSN.To = hex.EncodeToString(transaction.To)
 		transactionWithLogJSN.Nonce = transaction.Nonce
 		transactionWithLogJSN.Data = hex.EncodeToString(transaction.Data)

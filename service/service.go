@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/ackermanx/ethclient"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/facebookgo/grace/gracehttp"
 	"github.com/gin-gonic/gin"
 	"math/big"
@@ -38,7 +39,15 @@ func ShowBlockInfo(blockNum uint64) {
 	for i := 0; i < len(transations); i++ {
 		trans := transations[i]
 		fmt.Println("transation hash: ", trans.Hash())
-		fmt.Println("transation from: ", trans.To())
+		chainId, err := dialContext.NetworkID(context.Background())
+		if err != nil {
+			LogError.Error(err)
+		}
+		msg, err := trans.AsMessage(types.NewEIP155Signer(chainId), block.BaseFee())
+		if err != nil {
+			LogError.Error(err)
+		}
+		fmt.Println("transation from: ", msg.From())
 		fmt.Println("transation to: ", trans.To())
 		fmt.Println("transation nonce: ", trans.Nonce())
 		fmt.Println("transation data: ", trans.Data())
