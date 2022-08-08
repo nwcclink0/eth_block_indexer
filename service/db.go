@@ -307,6 +307,9 @@ func getTransactionByTxHash(txHashStr string) *TransactionWithLogJSN {
 		transactionWithLogJSN.Data = hex.EncodeToString(transaction.Data)
 		transactionWithLogJSN.Value = transaction.Value
 
+		var logs = make([]TransactionLogJSN, 0)
+		transactionWithLogJSN.Logs = logs
+
 		var transactionLogs []TransactionLog
 		result := db.Find(&transactionLogs, TransactionLog{TxHash: transaction.TxHash})
 		if result.Error != nil {
