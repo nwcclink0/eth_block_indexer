@@ -137,7 +137,7 @@ func RouterEngine() *gin.Engine {
 	router.GET(EthBlockIndexerConf.API.BlocksURI, queryBlocksHandler)
 	router.GET(EthBlockIndexerConf.API.BlockByIdURI, queryBlockByIdHandler)
 	router.GET(EthBlockIndexerConf.API.TransactionURI, queryTransactionHandler)
-	router.GET("/welcome", rootHandler)
+	router.GET("/", rootHandler)
 
 	return router
 }
