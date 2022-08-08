@@ -112,13 +112,13 @@ func Indexing(blockNum uint64) {
 	block, err := dialContext.BlockByNumber(ctx, new(big.Int).SetUint64(blockNum))
 	cancel()
 
-	//check
+	//check block existence
 	var blockInDb Block
 	result := db.First(&blockInDb, Block{
 		BlockNum: block.NumberU64(),
 	})
 	if result.Error == nil {
-		//update
+		//update block
 		db.Model(&blockInDb).Updates(Block{
 			BlockNum:   block.NumberU64(),
 			BlockHash:  block.Hash().Bytes(),
@@ -127,6 +127,7 @@ func Indexing(blockNum uint64) {
 		})
 		transactions := block.Transactions()
 		for i := 0; i < len(transactions); i++ {
+			// add or update transaction
 			transaction := transactions[i]
 			if transaction == nil {
 				continue
@@ -169,7 +170,31 @@ func Indexing(blockNum uint64) {
 						Value:    transaction.Value().Uint64(),
 					})
 			}
-			//TODO add receipt update;
+
+			// add new log for a transaction
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			dialContext, err := ethclient.DialContext(ctx, binanceMainnet)
+			receipt, err := dialContext.TransactionReceipt(ctx, transaction.Hash())
+			cancel()
+			if err != nil {
+				LogError.Error(err)
+			}
+			if receipt != nil {
+				for j := 0; j < len(receipt.Logs); j++ {
+					log := receipt.Logs[j]
+					var dbTransactionLog TransactionLog
+					result := db.First(&dbTransactionLog, TransactionLog{TxHash: transaction.Hash().Bytes(), Index: log.Index})
+					if result.Error == nil {
+						continue
+					}
+					db.Create(&TransactionLog{
+						TxHash: transaction.Hash().Bytes(),
+						Index:  log.Index,
+						Data:   log.Data,
+					})
+				}
+			}
+
 		}
 	} else {
 		// Insert block and related transactions
