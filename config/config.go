@@ -12,7 +12,7 @@ var defaultConf = []byte(`
 core:
   start_block_num: 21709284
   worker_num: 4 # default worker number is runtime.NumCPU()
-  queue_num: 2 # default queue number is 8192
+  queue_num: 2 # default queue number is 2
   address: ""
   http_port: "8080"
   https_port: "8081"

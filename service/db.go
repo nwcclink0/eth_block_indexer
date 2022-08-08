@@ -251,6 +251,7 @@ func GetLastNBlocks(n uint64) *BlockContainerJSN {
 	}
 }
 
+// GetBlockById block id defined as block number
 func GetBlockById(blockNum uint64) *BlockWithTransactionsJSN {
 	var blockWithTransactionsJSN BlockWithTransactionsJSN
 	var block Block
