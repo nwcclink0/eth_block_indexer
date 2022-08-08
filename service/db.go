@@ -266,6 +266,10 @@ func Indexing(blockNum uint64) {
 	cancel()
 }
 
+func hashBytesToStringWithPrefix(hash []byte) string {
+	return "0x" + hex.EncodeToString(hash)
+}
+
 func GetLastNBlocks(n uint64) *BlockContainerJSN {
 	var blockContainer BlockContainerJSN
 	var blockSummary BlockSummary
@@ -281,9 +285,9 @@ func GetLastNBlocks(n uint64) *BlockContainerJSN {
 				LogAccess.Debug(" block number hash: ", string(block.BlockHash))
 				blockJSN := BlockJSN{
 					BlockNum:   block.BlockNum,
-					BlockHash:  hex.EncodeToString(block.BlockHash),
+					BlockHash:  hashBytesToStringWithPrefix(block.BlockHash),
 					BlockTime:  block.BlockTime,
-					ParentHash: hex.EncodeToString(block.ParentHash),
+					ParentHash: hashBytesToStringWithPrefix(block.ParentHash),
 				}
 				blockContainer.Blocks = append(blockContainer.Blocks, blockJSN)
 			}
@@ -303,9 +307,9 @@ func GetBlockById(blockNum uint64) *BlockWithTransactionsJSN {
 	})
 	if result.Error == nil {
 		blockWithTransactionsJSN.BlockNum = block.BlockNum
-		blockWithTransactionsJSN.BlockHash = hex.EncodeToString(block.BlockHash)
+		blockWithTransactionsJSN.BlockHash = hashBytesToStringWithPrefix(block.BlockHash)
 		blockWithTransactionsJSN.BlockTime = block.BlockTime
-		blockWithTransactionsJSN.ParentHash = hex.EncodeToString(block.ParentHash)
+		blockWithTransactionsJSN.ParentHash = hashBytesToStringWithPrefix(block.ParentHash)
 
 		var transaction []Transaction
 		result := db.Find(&transaction, Transaction{BlockNum: blockNum})
@@ -326,7 +330,7 @@ func GetBlockById(blockNum uint64) *BlockWithTransactionsJSN {
 				LogAccess.Debug(err)
 			}
 			blockWithTransactionsJSN.Transactions =
-				append(blockWithTransactionsJSN.Transactions, hex.EncodeToString(transaction.TxHash))
+				append(blockWithTransactionsJSN.Transactions, hashBytesToStringWithPrefix(transaction.TxHash))
 		}
 		return &blockWithTransactionsJSN
 	} else {
@@ -334,9 +338,15 @@ func GetBlockById(blockNum uint64) *BlockWithTransactionsJSN {
 	}
 }
 
-func getTransactionByTxHash(txHashStr string) *TransactionWithLogJSN {
+func getTransactionByTxHash(txHashWithPrefixStr string) *TransactionWithLogJSN {
 	var transactionWithLogJSN TransactionWithLogJSN
 	var transaction Transaction
+	prefix := txHashWithPrefixStr[0:2]
+	if prefix != "0x" {
+		LogAccess.Debug("incorrect txHash: ", txHashWithPrefixStr)
+		return &transactionWithLogJSN
+	}
+	txHashStr := txHashWithPrefixStr[2:]
 	txHash, err := hex.DecodeString(txHashStr)
 	if err != nil {
 		LogError.Error(err)
@@ -344,11 +354,11 @@ func getTransactionByTxHash(txHashStr string) *TransactionWithLogJSN {
 	}
 	result := db.First(&transaction, Transaction{TxHash: txHash})
 	if result.Error == nil {
-		transactionWithLogJSN.TxHash = hex.EncodeToString(transaction.TxHash)
-		transactionWithLogJSN.From = hex.EncodeToString(transaction.From)
-		transactionWithLogJSN.To = hex.EncodeToString(transaction.To)
+		transactionWithLogJSN.TxHash = hashBytesToStringWithPrefix(transaction.TxHash)
+		transactionWithLogJSN.From = hashBytesToStringWithPrefix(transaction.From)
+		transactionWithLogJSN.To = hashBytesToStringWithPrefix(transaction.To)
 		transactionWithLogJSN.Nonce = transaction.Nonce
-		transactionWithLogJSN.Data = hex.EncodeToString(transaction.Data)
+		transactionWithLogJSN.Data = hashBytesToStringWithPrefix(transaction.Data)
 		transactionWithLogJSN.Value = transaction.Value
 
 		var logs = make([]TransactionLogJSN, 0)
@@ -378,7 +388,7 @@ func getTransactionByTxHash(txHashStr string) *TransactionWithLogJSN {
 				}
 				transactionLogJSN := TransactionLogJSN{
 					Index: transactionLog.Index,
-					Data:  hex.EncodeToString(transactionLog.Data),
+					Data:  hashBytesToStringWithPrefix(transactionLog.Data),
 				}
 				transactionWithLogJSN.Logs = append(transactionWithLogJSN.Logs, transactionLogJSN)
 			}
