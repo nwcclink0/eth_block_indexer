@@ -48,16 +48,21 @@ func main() {
 		switch sig {
 		case os.Interrupt:
 			service.LogAccess.Debug("receive interrupt")
+			os.Exit(0)
 		case syscall.SIGTERM:
 			service.LogAccess.Debug("receive sigterm")
+			os.Exit(0)
 		case syscall.SIGHUP:
 			service.LogAccess.Debug("receive sighup")
 		case syscall.SIGINT:
 			service.LogAccess.Debug("receive sigint")
+			os.Exit(0)
 		case syscall.SIGQUIT:
 			service.LogAccess.Debug("receive sigint")
+			os.Exit(0)
 		case syscall.SIGSEGV:
 			service.LogAccess.Debug("receive sigsegv")
+			os.Exit(0)
 		}
 	}()
 	notify, err := daemon.SdNotify(false, daemon.SdNotifyReady)
