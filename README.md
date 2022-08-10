@@ -1,3 +1,13 @@
+## eth_block_indexer
+eth_blocker_indexer is a multi-services for indexing and getting ethereum block information
+## Content
+[Content](#Content)
+[Design](#Design)
+[Indexer db schema](#indexer-db-schema)
+[Run form prebuild docker image](#run-form-prebuild-docker-image)
+[Build from source](#build-from-source)
+[Run eth_block_indexer](#run-eth_block_indexer)
+[HTTP API](#http-api)
 ## Design
 
 ---
@@ -73,7 +83,7 @@ log:
 ## Run form prebuild docker image
 
 ---
-Go to *load_balancer* subdirectory and run docker compose. *N* is http api service number for load balancing
+Go to *load_balancer* subdirectory and run docker compose.[](https://) *N* is http api service number for load balancing
 
 ```
 docker-compose up -d -scale eth_block_indexer_http_api=N
@@ -101,25 +111,38 @@ binary will locate at subdirectory *load_balancer/release*
 ```
 It will produce docker image: *eth_block_indexer_http_api* and *eth_block_indexer_indexer*
 
+## Run eth_block_indexer
+
+---
+- Indexer
+```
+$ eth_block_indexer -d true
+```
+- HTTP API
+```
+$ eth_block_indexer -h true
+```
+
+
 ## HTTP API
 
 ---
 - Get latest n block
 
 ```
-curl --location --request GET '127.0.0.1/blocks?limit=$n' \
+$ curl --location --request GET '127.0.0.1/blocks?limit=$n' \
 --header 'Host: eth.docker.localhost'
 ```
 - Get block by block id (block number)
 
 ```
-curl --location --request GET '127.0.0.1/blocks/$block_number' \
+$ curl --location --request GET '127.0.0.1/blocks/$block_number' \
 --header 'Host: eth.docker.localhost'
 ```
 
 - Get transaction data with event logs, $tx_hash need add prefix *0x* before hash
 
 ```
-curl --location --request GET '127.0.0.1/transaction/$tx_hash \
+$ curl --location --request GET '127.0.0.1/transaction/$tx_hash \
 --header 'Host: eth.docker.localhost'
 ```
