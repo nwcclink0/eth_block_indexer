@@ -1,4 +1,4 @@
-# Design
+## Design
 
 ---
 *eth_block_indexer* contain two services. API to get block and transaction related information and Ethereum block indexer
@@ -27,7 +27,7 @@ log:
   error_level: "trace"
 ```
 
-# Indexer db schema
+## Indexer db schema
 
 ---
 ### *blocks*
@@ -70,3 +70,56 @@ log:
 | index   | bytea   |
 | data   | bytea   |
 
+## Run form prebuild docker image
+
+---
+Go to *load_balancer* subdirectory and run docker compose. *N* is http api service number for load balancing
+
+```
+docker-compose up -d -scale eth_block_indexer_http_api=N
+```
+## Build from source
+
+---
+- Build *eth_block_indexer*
+
+x86_64
+```
+./build.sh cloud
+```
+native platform
+
+```
+./build.sh
+```
+binary will locate at subdirectory *load_balancer/release*
+- Build *docker image*
+  Go to *load_balancer* subdirectory
+
+```
+./build.sh
+```
+It will produce docker image: *eth_block_indexer_http_api* and *eth_block_indexer_indexer*
+
+## HTTP API
+
+---
+- Get latest n block
+
+```
+curl --location --request GET '127.0.0.1/blocks?limit=$n' \
+--header 'Host: eth.docker.localhost'
+```
+- Get block by block id (block number)
+
+```
+curl --location --request GET '127.0.0.1/blocks/$block_number' \
+--header 'Host: eth.docker.localhost'
+```
+
+- Get transaction data with event logs, $tx_hash need add prefix *0x* before hash
+
+```
+curl --location --request GET '127.0.0.1/transaction/$tx_hash \
+--header 'Host: eth.docker.localhost'
+```
