@@ -1,0 +1,34 @@
+version: '3'
+
+services:
+  eth_block_indexer:
+    image: "yuantingwei/eth_block_indexer:v0.3"
+    restart: always
+    logging:
+      options:
+        max-size: "100k"
+        max-file: "3"
+    labels:
+      - "traefik.http.routers.eth.rule=Host(`eth.docker.localhost`)"
+      - "traefik.http.services.eth.loadbalancer.server.port=8080"
+    depends_on:
+      - db
+  db:
+    image: "postgres:14"
+    restart: always
+    ports:
+      - 5432:5432
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=password
+  lb:
+    image: traefik:v2.8
+    restart: always
+    command: --api.insecure=true --providers.docker
+    ports:
+      - 8080:8080
+      - 80:80
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
