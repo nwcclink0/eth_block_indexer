@@ -78,7 +78,7 @@ type TransactionWithLogJSN struct {
 	Logs []TransactionLogJSN `json:"logs"`
 }
 
-const dsn = "host=localhost user=yt dbname=eth_block_index port=5432 sslmode=disable"
+const dsn = "host=localhost user=yt password=yt dbname=eth_block_index port=5432 sslmode=disable"
 
 func InitDb() {
 	var err error
