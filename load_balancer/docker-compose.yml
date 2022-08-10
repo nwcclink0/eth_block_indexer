@@ -1,8 +1,8 @@
 version: '3'
 
 services:
-  eth_block_indexer:
-    image: "yuantingwei/eth_block_indexer:v0.3"
+  eth_block_indexer_http_api:
+    image: "yuantingwei/eth_block_indexer_http_api:v0.2"
     restart: always
     logging:
       options:
@@ -11,6 +11,15 @@ services:
     labels:
       - "traefik.http.routers.eth.rule=Host(`eth.docker.localhost`)"
       - "traefik.http.services.eth.loadbalancer.server.port=8080"
+    depends_on:
+      - db
+  eth_block_indexer_indexer:
+    image: "yuantingwei/eth_block_indexer_indexer:v0.2"
+    restart: always
+    logging:
+      options:
+        max-size: "100k"
+        max-file: "3"
     depends_on:
       - db
   db:

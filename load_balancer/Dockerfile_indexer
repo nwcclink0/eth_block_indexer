@@ -10,7 +10,7 @@ RUN update-ca-certificates
 
 
 ADD release/eth_block_indexer /bin/
-ENTRYPOINT ["/bin/eth_block_indexer"]
+ENTRYPOINT ["/bin/eth_block_indexer", "-d", "true"]
 
 
 

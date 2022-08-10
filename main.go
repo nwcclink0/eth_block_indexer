@@ -16,9 +16,13 @@ import (
 func main() {
 	var (
 		configFile string
+		http       bool
+		db         bool
 	)
 
 	flag.StringVar(&configFile, "c", "", "Configuration file path")
+	flag.BoolVar(&http, "h", false, "http mode")
+	flag.BoolVar(&db, "d", false, "indexing db mode")
 	flag.Usage = usage
 	flag.Parse()
 
@@ -72,14 +76,19 @@ func main() {
 	if err != nil {
 		service.LogError.Fatal(err)
 	}
-	service.InitWorker(service.EthBlockIndexerConf.Core.WorkerNum,
-		service.EthBlockIndexerConf.Core.QueueNum)
 	service.InitDb()
-	indexer := service.NewIndexer(service.EthBlockIndexerConf.Core.StartBlockNum)
+	if db {
+		service.InitWorker(service.EthBlockIndexerConf.Core.WorkerNum,
+			service.EthBlockIndexerConf.Core.QueueNum)
+		indexer := service.NewIndexer(service.EthBlockIndexerConf.Core.StartBlockNum)
+		indexer.Run()
+	}
 
 	var g errgroup.Group
-	g.Go(service.RunHTTPServer)
-	indexer.Run()
+	if http {
+		g.Go(service.RunHTTPServer)
+	}
+
 	if err = g.Wait(); err != nil {
 		service.LogError.Fatal(err)
 	}
