@@ -36,6 +36,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+            go-version: 1.18
+
+      - name: Build
+        run: build.sh cloud
 
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
