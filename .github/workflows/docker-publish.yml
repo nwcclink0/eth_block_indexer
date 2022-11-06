@@ -43,7 +43,7 @@ jobs:
             go-version: 1.18
 
       - name: Build
-        run: bash build.sh cloud
+        run: bash build.sh github_action
 
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
